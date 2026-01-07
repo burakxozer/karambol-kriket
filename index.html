@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karambol Kriket Turnuva</title>
+
+<style>
+:root{
+--bg:#0b1220;--panel:#111827;--line:#1f2937;
+--row1:#020617;--row2:#020a1f;
+--text:#e5e7eb;--accent:#22c55e;
+}
+*{box-sizing:border-box;font-family:-apple-system}
+body{margin:0;background:var(--bg);color:var(--text)}
+.app{max-width:900px;margin:auto;padding:10px}
+
+.header-title{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+}
+.header-title h1{margin:0}
+.logo{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.card{background:var(--panel);border-radius:14px;padding:12px;margin-bottom:12px}
+button{width:100%;padding:14px;font-size:18px;border:none;border-radius:12px;background:var(--accent);color:#000;margin-top:10px}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap}
+.btn-row button{flex:1}
+input[type=text],input[type=number]{width:100%;padding:14px;font-size:18px;border-radius:12px;border:none}
+label{display:flex;gap:8px;align-items:center;margin:6px 0}
+.hidden{display:none}
+
+/* SCOREBOARD */
+.board{display:grid}
+.header,.row{display:grid}
+.row:nth-child(even){background:var(--row1)}
+.row:nth-child(odd){background:var(--row2)}
+.cell{
+height:44px;display:flex;align-items:center;justify-content:center;
+border-left:1px solid var(--line);font-size:22px;
+user-select:none;
+}
+.cell:first-child{border-left:none}
+.cell:focus,.cell:active{outline:none;background:inherit}
+.score{font-weight:700}
+.team-header{flex-direction:column;font-size:14px}
+.team-score{font-size:18px;font-weight:700}
+.mark{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.circle{border:2px solid #fff}
+.controls{display:flex;gap:10px;margin-top:10px}
+.controls button{background:#334155;color:#fff}
+
+/* COUNTDOWN */
+.countdown{text-align:center;font-size:28px}
+.countdown span{font-size:60px;display:block;margin-top:10px}
+
+/* WINNER */
+.winner{text-align:center;font-size:28px}
+.winner span{font-size:60px;display:block;margin:10px 0}
+
+/* BRACKET */
+.bracket-item{
+  padding:10px;
+  border-bottom:1px solid var(--line);
+  text-align:center;
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<div class="header-title">
+  <img class="logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..." />
+  <h1>KARAMBOL KRIKET</h1>
+  <img class="logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..." />
+</div>
+
+<!-- SETUP -->
+<div id="setup" class="card">
+  <div id="s1">
+    <p>Takım Sayısı</p>
+    <div class="btn-row">
+      <button onclick="setTeamCount(2)">2</button>
+      <button onclick="setTeamCount(3)">3</button>
+      <button onclick="setTeamCount(4)">4</button>
+      <button onclick="setTeamCount(5)">5</button>
+      <button onclick="setTeamCount(6)">6</button>
+      <button onclick="setTeamCount(7)">7</button>
+      <button onclick="setTeamCount(8)">8</button>
+    </div>
+  </div>
+
+  <div id="s2" class="hidden">
+    <p>Oyuncu Sayısı</p>
+    <input id="playerCount" type="number" min="2">
+    <button onclick="setPlayers()">Devam</button>
+  </div>
+
+  <div id="s3" class="hidden">
+    <p>Oyuncular</p>
+    <div id="playerInputs"></div>
+    <button onclick="createTeams()">Takımları Oluştur</button>
+  </div>
+
+  <div id="s4" class="hidden">
+    <p>Turnuva Ayarları</p>
+    <label><input type="radio" name="mode" value="1" checked> Best of 1</label>
+    <label><input type="radio" name="mode" value="3"> Best of 3</label>
+    <div id="teamList"></div>
+    <div class="btn-row">
+      <button onclick="reshuffle()">Tekrar Kura</button>
+      <button onclick="prepareStart()">Turnuvayı Başlat</button>
+    </div>
+  </div>
+</div>
+
+<!-- COUNTDOWN -->
+<div id="countdown" class="card hidden">
+  <div class="countdown" id="countText"></div>
+</div>
+
+<!-- GAME -->
+<div id="game" class="card hidden">
+  <div id="board"></div>
+  <div class="controls">
+    <button onclick="openBracket()">🧩 Turnuva Ağacı</button>
+    <button onclick="resetBoard()">Reset</button>
+  </div>
+</div>
+
+<!-- BRACKET -->
+<div id="bracket" class="card hidden">
+  <h3 style="text-align:center">Turnuva Ağacı</h3>
+  <div id="bracketTree"></div>
+  <button onclick="closeBracket()">← Maça Dön</button>
+</div>
+
+<!-- WINNER -->
+<div id="winner" class="card hidden">
+  <div class="winner">
+    <span>🏆</span>
+    <div id="winnerName"></div>
+    <button onclick="location.reload()">Yeni Turnuva</button>
+  </div>
+</div>
+
+<script>
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();
+const shuffle=a=>a.sort(()=>Math.random()-.5);
+
+let teamCount, teams=[], queue=[], currentMatch=[], mode=1;
+let matchWins=[0,0];
+
+function setTeamCount(n){teamCount=n;s1.classList.add("hidden");s2.classList.remove("hidden");}
+
+function setPlayers(){
+  playerInputs.innerHTML="";
+  for(let i=0;i<playerCount.value;i++){
+    playerInputs.innerHTML+=`
+      <label>
+        <input type="text" placeholder="Oyuncu ${i+1}">
+        <input type="checkbox"> Seribaşı
+      </label>`;
+  }
+  s2.classList.add("hidden");s3.classList.remove("hidden");
+}
+
+function createTeams(){
+  let rows=[...playerInputs.children];
+  let seeded=[],normal=[];
+  rows.forEach(r=>{
+    let name=cap(r.querySelector("input[type=text]").value);
+    let seed=r.querySelector("input[type=checkbox]").checked;
+    (seed?seeded:normal).push(name);
+  });
+
+  shuffle(seeded);shuffle(normal);
+  teams=[...Array(teamCount)].map(()=>[]);
+  seeded.forEach((p,i)=>teams[i%teamCount].push(p));
+  normal.forEach((p,i)=>teams[i%teamCount].push(p));
+  teams=teams.map(t=>({name:t.join(" & ")}));
+
+  teamList.innerHTML=teams.map(t=>`<p>• ${t.name}</p>`).join("");
+  s3.classList.add("hidden");s4.classList.remove("hidden");
+}
+
+function reshuffle(){createTeams()}
+
+function prepareStart(){
+  mode=+document.querySelector('input[name="mode"]:checked').value;
+  shuffle(teams);
+  queue=[...teams];
+  setup.classList.add("hidden");
+  showCountdown();
+}
+
+function showCountdown(){
+  countdown.classList.remove("hidden");
+  let pairs=[];
+  for(let i=0;i<queue.length;i+=2){
+    if(queue[i+1]) pairs.push(`${queue[i].name} vs ${queue[i+1].name}`);
+  }
+  let sec=3;
+  countText.innerHTML=`Turnuva Başlıyor<br>${pairs.join("<br>")}<span>${sec}</span>`;
+  let t=setInterval(()=>{
+    sec--;
+    if(sec===0){
+      clearInterval(t);
+      countdown.classList.add("hidden");
+      startNextMatch();
+    }else{
+      countText.innerHTML=`Turnuva Başlıyor<br>${pairs.join("<br>")}<span>${sec}</span>`;
+    }
+  },1000);
+}
+
+function startNextMatch(){
+  if(queue.length===1){
+    winnerName.textContent=queue[0].name;
+    winner.classList.remove("hidden");
+    return;
+  }
+  currentMatch=[queue.shift(),queue.shift()];
+  matchWins=[0,0];
+  startBoard();
+}
+
+const nums=["20","19","18","17","16","15","14","13","12","D","T","B","H"];
+let scores;
+
+function startBoard(){
+  game.classList.remove("hidden");
+  render();
+}
+
+function render(){
+  board.innerHTML="";
+  scores=[Array(nums.length).fill(0),Array(nums.length).fill(0)];
+  board.style.gridTemplateColumns="1fr 52px 1fr";
+
+  const h=document.createElement("div");
+  h.className="header";
+  h.style.gridTemplateColumns=board.style.gridTemplateColumns;
+
+  currentMatch.forEach((t,i)=>{
+    const c=document.createElement("div");
+    c.className="cell team-header";
+    c.innerHTML=t.name+(mode===3?`<div class="team-score">${matchWins[i]}</div>`:"");
+    h.appendChild(c);
+  });
+
+  h.insertBefore(document.createElement("div"),h.children[1]);
+  board.appendChild(h);
+
+  nums.forEach((n,r)=>{
+    const row=document.createElement("div");
+    row.className="row";
+    row.style.gridTemplateColumns=board.style.gridTemplateColumns;
+    for(let t=0;t<2;t++){
+      const c=document.createElement("div");
+      c.className="cell";
+      c.onclick=()=>tap(c,t,r);
+      row.appendChild(c);
+      if(t===0){
+        const s=document.createElement("div");
+        s.className="cell score";
+        s.textContent=n;
+        row.appendChild(s);
+      }
+    }
+    board.appendChild(row);
+  });
+}
+
+function tap(cell,t,r){
+  scores[t][r]=(scores[t][r]+1)%4;
+  cell.innerHTML=["","/","X","<div class='mark circle'>X</div>"][scores[t][r]];
+  checkWin();
+}
+
+function checkWin(){
+  scores.forEach((s,i)=>{
+    if(s.every(v=>v===3)){
+      matchWins[i]++;
+      if(mode===1 || matchWins[i]===2){
+        queue.push(currentMatch[i]);
+        game.classList.add("hidden");
+        startNextMatch();
+      }else{
+        render();
+      }
+    }
+  });
+}
+
+function resetBoard(){render()}
+
+/* BRACKET */
+function openBracket(){
+  game.classList.add("hidden");
+  bracketTree.innerHTML="";
+  for(let i=0;i<queue.length;i+=2){
+    if(queue[i+1])
+      bracketTree.innerHTML+=`<div class="bracket-item">${queue[i].name} vs ${queue[i+1].name}</div>`;
+    else
+      bracketTree.innerHTML+=`<div class="bracket-item">${queue[i].name} (Bay)</div>`;
+  }
+  bracket.classList.remove("hidden");
+}
+
+function closeBracket(){
+  bracket.classList.add("hidden");
+  game.classList.remove("hidden");
+}
+</script>
+</body>
+</html>
