@@ -14,28 +14,20 @@
 *{box-sizing:border-box;font-family:-apple-system}
 body{margin:0;background:var(--bg);color:var(--text)}
 .app{max-width:900px;margin:auto;padding:10px}
-
-.header-title{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:12px;
-}
-.header-title h1{margin:0}
-.logo{
-  width:42px;
-  height:42px;
-  border-radius:50%;
-  object-fit:cover;
-}
-
+h1{text-align:center}
 .card{background:var(--panel);border-radius:14px;padding:12px;margin-bottom:12px}
-button{width:100%;padding:14px;font-size:18px;border:none;border-radius:12px;background:var(--accent);color:#000;margin-top:10px}
+button{width:100%;padding:14px;font-size:18px;border:none;border-radius:12px;background:var(--accent);color:#000;margin-top:10px;cursor:pointer}
 .btn-row{display:flex;gap:10px;flex-wrap:wrap}
 .btn-row button{flex:1}
-input[type=text],input[type=number]{width:100%;padding:14px;font-size:18px;border-radius:12px;border:none}
+input{width:100%;padding:14px;font-size:18px;border-radius:12px;border:none}
 label{display:flex;gap:8px;align-items:center;margin:6px 0}
-.hidden{display:none}
+.hidden{display:none!important;pointer-events:none!important}
+
+/* INFO BAR */
+.info-bar{
+display:flex;justify-content:space-between;align-items:center;
+background:#020617;padding:8px 12px;border-radius:10px;font-size:14px
+}
 
 /* SCOREBOARD */
 .board{display:grid}
@@ -45,43 +37,42 @@ label{display:flex;gap:8px;align-items:center;margin:6px 0}
 .cell{
 height:44px;display:flex;align-items:center;justify-content:center;
 border-left:1px solid var(--line);font-size:22px;
-user-select:none;
+user-select:none;cursor:pointer
 }
 .cell:first-child{border-left:none}
-.cell:focus,.cell:active{outline:none;background:inherit}
 .score{font-weight:700}
 .team-header{flex-direction:column;font-size:14px}
 .team-score{font-size:18px;font-weight:700}
 .mark{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center}
 .circle{border:2px solid #fff}
-.controls{display:flex;gap:10px;margin-top:10px}
-.controls button{background:#334155;color:#fff}
 
-/* COUNTDOWN */
-.countdown{text-align:center;font-size:28px}
-.countdown span{font-size:60px;display:block;margin-top:10px}
+/* OVERLAY */
+.overlay{
+position:fixed;inset:0;background:rgba(0,0,0,.8);
+display:flex;align-items:center;justify-content:center;z-index:50
+}
+.overlay .box{
+background:#020617;padding:22px 28px;border-radius:16px;text-align:center
+}
+.overlay span{font-size:56px}
+
+/* BRACKET */
+.bracket{margin-top:10px}
+.match{
+background:#020a1f;border:1px solid var(--line);
+border-radius:10px;padding:8px;margin-bottom:6px
+}
+.vs{text-align:center;color:#94a3b8;font-size:12px;margin:4px 0}
 
 /* WINNER */
 .winner{text-align:center;font-size:28px}
 .winner span{font-size:60px;display:block;margin:10px 0}
-
-/* BRACKET */
-.bracket-item{
-  padding:10px;
-  border-bottom:1px solid var(--line);
-  text-align:center;
-}
 </style>
 </head>
 
 <body>
 <div class="app">
-
-<div class="header-title">
-  <img class="logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..." />
-  <h1>KARAMBOL KRIKET</h1>
-  <img class="logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..." />
-</div>
+<h1>KARAMBOL KRIKET</h1>
 
 <!-- SETUP -->
 <div id="setup" class="card">
@@ -122,42 +113,54 @@ user-select:none;
   </div>
 </div>
 
-<!-- COUNTDOWN -->
-<div id="countdown" class="card hidden">
-  <div class="countdown" id="countText"></div>
+<!-- INFO -->
+<div id="info" class="card hidden">
+  <div class="info-bar">
+    <div>
+      <strong id="matchLabel"></strong><br>
+      <span id="roundLabel"></span>
+    </div>
+    <button onclick="toggleBracket()" style="font-size:12px">Turnuva Ağacı</button>
+  </div>
+  <div id="bracketWrap" class="hidden">
+    <button onclick="toggleBracket()" style="font-size:12px">Kapat</button>
+    <div id="bracket" class="bracket"></div>
+  </div>
 </div>
 
 <!-- GAME -->
 <div id="game" class="card hidden">
   <div id="board"></div>
-  <div class="controls">
-    <button onclick="openBracket()">🧩 Turnuva Ağacı</button>
-    <button onclick="resetBoard()">Reset</button>
-  </div>
 </div>
 
-<!-- BRACKET -->
-<div id="bracket" class="card hidden">
-  <h3 style="text-align:center">Turnuva Ağacı</h3>
-  <div id="bracketTree"></div>
-  <button onclick="closeBracket()">← Maça Dön</button>
+<!-- OVERLAY -->
+<div id="overlay" class="overlay hidden">
+  <div class="box">
+    <h2>Maçı Kazandı</h2>
+    <div id="overlayText"></div>
+    <span id="overlayCount"></span>
+  </div>
 </div>
 
 <!-- WINNER -->
 <div id="winner" class="card hidden">
   <div class="winner">
     <span>🏆</span>
+    <div><strong>ŞAMPİYON</strong></div>
     <div id="winnerName"></div>
-    <button onclick="location.reload()">Yeni Turnuva</button>
+    <div class="btn-row">
+      <button onclick="restartSameTeams()">Tekrar Turnuva</button>
+      <button onclick="location.reload()">Yeni Turnuva</button>
+    </div>
   </div>
 </div>
 
 <script>
-const cap=s=>s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();
 const shuffle=a=>a.sort(()=>Math.random()-.5);
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();
 
-let teamCount, teams=[], queue=[], currentMatch=[], mode=1;
-let matchWins=[0,0];
+let teamCount, teams=[], queue=[], baseTeams=[];
+let currentMatch=[], mode=1, matchWins=[0,0];
 
 function setTeamCount(n){teamCount=n;s1.classList.add("hidden");s2.classList.remove("hidden");}
 
@@ -177,64 +180,80 @@ function createTeams(){
   let rows=[...playerInputs.children];
   let seeded=[],normal=[];
   rows.forEach(r=>{
-    let name=cap(r.querySelector("input[type=text]").value);
-    let seed=r.querySelector("input[type=checkbox]").checked;
+    let name=cap(r.children[0].value.trim());
+    let seed=r.children[1].checked;
     (seed?seeded:normal).push(name);
   });
-
   shuffle(seeded);shuffle(normal);
   teams=[...Array(teamCount)].map(()=>[]);
   seeded.forEach((p,i)=>teams[i%teamCount].push(p));
   normal.forEach((p,i)=>teams[i%teamCount].push(p));
   teams=teams.map(t=>({name:t.join(" & ")}));
-
+  baseTeams=JSON.parse(JSON.stringify(teams));
   teamList.innerHTML=teams.map(t=>`<p>• ${t.name}</p>`).join("");
   s3.classList.add("hidden");s4.classList.remove("hidden");
 }
 
-function reshuffle(){createTeams()}
+function reshuffle(){createTeams();}
 
 function prepareStart(){
   mode=+document.querySelector('input[name="mode"]:checked').value;
   shuffle(teams);
   queue=[...teams];
   setup.classList.add("hidden");
-  showCountdown();
+  info.classList.remove("hidden");
+  startNextMatch();
 }
 
-function showCountdown(){
-  countdown.classList.remove("hidden");
-  let pairs=[];
-  for(let i=0;i<queue.length;i+=2){
-    if(queue[i+1]) pairs.push(`${queue[i].name} vs ${queue[i+1].name}`);
-  }
-  let sec=3;
-  countText.innerHTML=`Turnuva Başlıyor<br>${pairs.join("<br>")}<span>${sec}</span>`;
-  let t=setInterval(()=>{
-    sec--;
-    if(sec===0){
-      clearInterval(t);
-      countdown.classList.add("hidden");
-      startNextMatch();
-    }else{
-      countText.innerHTML=`Turnuva Başlıyor<br>${pairs.join("<br>")}<span>${sec}</span>`;
-    }
-  },1000);
+function restartSameTeams(){
+  winner.classList.add("hidden");
+  teams=JSON.parse(JSON.stringify(baseTeams));
+  shuffle(teams);
+  queue=[...teams];
+  info.classList.remove("hidden");
+  startNextMatch();
 }
+
+function roundName(){
+  if(queue.length<=2) return "Final";
+  if(queue.length<=4) return "Yarı Final";
+  return "Eleme Turu";
+}
+
+function toggleBracket(){
+  bracketWrap.classList.toggle("hidden");
+  renderBracket();
+}
+
+function renderBracket(){
+  bracket.innerHTML="";
+  for(let i=0;i<queue.length;i+=2){
+    if(!queue[i+1]) break;
+    bracket.innerHTML+=`
+      <div class="match">
+        ${queue[i].name}
+        <div class="vs">VS</div>
+        ${queue[i+1].name}
+      </div>`;
+  }
+}
+
+const nums=["20","19","18","17","16","15","14","13","12","D","T","B","H"];
+let scores;
 
 function startNextMatch(){
   if(queue.length===1){
     winnerName.textContent=queue[0].name;
     winner.classList.remove("hidden");
+    info.classList.add("hidden");
     return;
   }
   currentMatch=[queue.shift(),queue.shift()];
   matchWins=[0,0];
+  matchLabel.textContent=currentMatch[0].name+" vs "+currentMatch[1].name;
+  roundLabel.textContent=roundName();
   startBoard();
 }
-
-const nums=["20","19","18","17","16","15","14","13","12","D","T","B","H"];
-let scores;
 
 function startBoard(){
   game.classList.remove("hidden");
@@ -267,6 +286,7 @@ function render(){
     for(let t=0;t<2;t++){
       const c=document.createElement("div");
       c.className="cell";
+      c.onmousedown=e=>e.preventDefault();
       c.onclick=()=>tap(c,t,r);
       row.appendChild(c);
       if(t===0){
@@ -291,9 +311,15 @@ function checkWin(){
     if(s.every(v=>v===3)){
       matchWins[i]++;
       if(mode===1 || matchWins[i]===2){
-        queue.push(currentMatch[i]);
+        let win=currentMatch[i];
         game.classList.add("hidden");
-        startNextMatch();
+        if(queue.length===0){
+          winnerName.textContent=win.name;
+          winner.classList.remove("hidden");
+        }else{
+          queue.push(win);
+          showWinOverlay(win.name);
+        }
       }else{
         render();
       }
@@ -301,24 +327,18 @@ function checkWin(){
   });
 }
 
-function resetBoard(){render()}
-
-/* BRACKET */
-function openBracket(){
-  game.classList.add("hidden");
-  bracketTree.innerHTML="";
-  for(let i=0;i<queue.length;i+=2){
-    if(queue[i+1])
-      bracketTree.innerHTML+=`<div class="bracket-item">${queue[i].name} vs ${queue[i+1].name}</div>`;
-    else
-      bracketTree.innerHTML+=`<div class="bracket-item">${queue[i].name} (Bay)</div>`;
-  }
-  bracket.classList.remove("hidden");
-}
-
-function closeBracket(){
-  bracket.classList.add("hidden");
-  game.classList.remove("hidden");
+function showWinOverlay(name){
+  overlayText.textContent=name;
+  overlay.classList.remove("hidden");
+  let c=3;overlayCount.textContent=c;
+  let t=setInterval(()=>{
+    c--;overlayCount.textContent=c;
+    if(c===0){
+      clearInterval(t);
+      overlay.classList.add("hidden");
+      startNextMatch();
+    }
+  },1000);
 }
 </script>
 </body>
